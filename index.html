@@ -81,16 +81,19 @@
     </div>
 
     <script>
+        // Using a single shared counter ID that's the same for everyone
+        const SHARED_COUNTER_ID = 'atforward-site-visitor-count-2024';
+        
         // Multiple API fallbacks for reliability
         const APIs = [
             {
                 name: 'CountAPI',
-                url: 'https://api.countapi.xyz/hit/atforward-fdevereaux5/visits',
+                url: `https://api.countapi.xyz/hit/atforward-global/${SHARED_COUNTER_ID}`,
                 parseResponse: (data) => data.value
             },
             {
                 name: 'CounterAPI',
-                url: 'https://api.counterapi.dev/v1/atforward-fdevereaux5/visits/up',
+                url: `https://api.counterapi.dev/v1/atforward-global/${SHARED_COUNTER_ID}/up`,
                 parseResponse: (data) => data.count
             }
         ];
