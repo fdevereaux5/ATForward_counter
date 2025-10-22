@@ -53,6 +53,7 @@
             margin-top: 15px;
             font-size: 12px;
             color: #28a745;
+            font-weight: 500;
         }
         
         .error-message {
@@ -60,53 +61,93 @@
             font-size: 14px;
             margin-top: 10px;
         }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
     </style>
 </head>
 <body>
     <div class="counter-container">
         <div class="counter-icon">👥</div>
         <div class="counter-label">Total Visitors</div>
-        <div class="counter-display" id="counter">Loading...</div>
-        <div class="status-message" id="status"></div>
+        <div class="counter-display loading" id="counter">0</div>
+        <div class="status-message" id="status">Connecting...</div>
     </div>
 
     <script>
-        // Using GoatCounter's API - reliable and free
-        const COUNTER_ID = 'atforward-counter-' + Math.random().toString(36).substring(7);
-        
+        // Multiple API fallbacks for reliability
+        const APIs = [
+            {
+                name: 'CountAPI',
+                url: 'https://api.countapi.xyz/hit/atforward-fdevereaux5/visits',
+                parseResponse: (data) => data.value
+            },
+            {
+                name: 'CounterAPI',
+                url: 'https://api.counterapi.dev/v1/atforward-fdevereaux5/visits/up',
+                parseResponse: (data) => data.count
+            }
+        ];
+
+        let currentAPIIndex = 0;
+
         async function updateCounter() {
-            try {
-                // Using a simple API service for counting
-                const API_URL = `https://api.counterapi.dev/v1/atforward-visits/visit/up`;
+            const counterEl = document.getElementById('counter');
+            const statusEl = document.getElementById('status');
+            
+            // Try each API in sequence
+            for (let i = 0; i < APIs.length; i++) {
+                const api = APIs[currentAPIIndex];
                 
-                const response = await fetch(API_URL);
-                
-                if (!response.ok) {
-                    throw new Error('Failed to fetch count');
+                try {
+                    const response = await fetch(api.url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    const count = api.parseResponse(data);
+                    
+                    // Success!
+                    counterEl.textContent = count.toLocaleString();
+                    counterEl.classList.remove('loading');
+                    statusEl.textContent = '✓ Live Counter Active';
+                    statusEl.style.color = '#28a745';
+                    return; // Exit on success
+                    
+                } catch (error) {
+                    console.warn(`${api.name} failed:`, error);
+                    
+                    // Try next API
+                    currentAPIIndex = (currentAPIIndex + 1) % APIs.length;
+                    
+                    if (i === APIs.length - 1) {
+                        // All APIs failed, show error
+                        counterEl.textContent = '---';
+                        counterEl.classList.remove('loading');
+                        statusEl.innerHTML = '<span class="error-message">⚠ Counter Unavailable</span>';
+                    }
                 }
-                
-                const data = await response.json();
-                const count = data.count;
-                
-                document.getElementById('counter').textContent = count.toLocaleString();
-                document.getElementById('status').textContent = '✓ Counter Active';
-                
-            } catch (error) {
-                console.error('Error updating counter:', error);
-                
-                // Fallback to showing view count from page load time
-                const sessionCount = sessionStorage.getItem('pageViews') || '0';
-                const newCount = parseInt(sessionCount) + 1;
-                sessionStorage.setItem('pageViews', newCount);
-                
-                document.getElementById('counter').textContent = newCount.toLocaleString();
-                document.getElementById('status').innerHTML = 
-                    '<span style="color: #ffc107;">⚠ Session Count Only</span>';
             }
         }
 
         // Initialize counter when page loads
         updateCounter();
+
+        // Retry every 30 seconds if failed
+        setInterval(() => {
+            const statusEl = document.getElementById('status');
+            if (statusEl.textContent.includes('Unavailable')) {
+                updateCounter();
+            }
+        }, 30000);
     </script>
 </body>
 </html>
